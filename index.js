@@ -1,59 +1,50 @@
 var button = document.getElementById("submit-button");
 var text = document.getElementById("text-field");
 var select = document.getElementById("select");
-var stocks_list = []
-var arr = [
-  ['Stock', 'price', {
-    role: "annotation"
-  }]
-];
-
+let stockMap = new Map()
 
 button.addEventListener('click', async function(event) {
   event.preventDefault();
 
   if (!text.value) {
+    alert("Stock symbol required!");
     return false;
   }
-  if (text.value in stocks_list) {
-    return false;
-  }
-
+  clearInterval(setinterval);
   var symbol = text.value.toUpperCase();
-  if (!stocks_list.includes(symbol)) {
-    stocks_list.push(text.value);
-    var url = 'https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=' + symbol + '&interval=5min&apikey=DNC2S06DMLBYB9RS';
-    var textnode = document.createTextNode(symbol);
-    var node = document.createElement("li");
-    node.appendChild(textnode);
-     //to append the item
-        select.appendChild(node);
-        text.value = '';
 
-    fetch(url)
-      .then(resp => resp.json())
-      .then(data => data['Time Series (5min)'][data["Meta Data"]["3. Last Refreshed"]]["4. close"])
-      .then(function(data) {
+  if (!stockMap.has(symbol)) {
+    let price = await Promise.resolve(fetchStockData(symbol));
 
-        var price = parseFloat(data);
-        arr.push([symbol, price, price]);
-        google.charts.setOnLoadCallback(drawChart);
-
-       
+    if (price) {
+      stockMap.set(symbol, parseFloat(price));
+      var textnode = document.createTextNode(symbol);
+      var node = document.createElement("li");
+      node.appendChild(textnode);
+      select.appendChild(node);
+      text.value = '';
+      google.charts.load('current', {
+        'packages': ['corechart']
       });
+      google.charts.setOnLoadCallback(drawChart);
+    } else {
+      alert("Enter a valid symbol or please try again");
+    }
+  } else {
+    alert(symbol + " is already added!");
   }
-
-});
-
-google.charts.load('current', {
-  'packages': ['corechart', 'bar']
+  setinterval = setInterval(refresh, 5000);
 });
 
 function drawChart() {
+  var data = new google.visualization.DataTable();
+  data.addColumn('string', 'stockID');
+  data.addColumn('number', 'price');
 
+  stockMap.forEach(function(value, key, map) {
+    data.addRow([key, value]);
+  });
 
-
-  var data = google.visualization.arrayToDataTable(arr);
   var view = new google.visualization.DataView(data);
   view.setColumns([0, 1,
     {
@@ -67,16 +58,54 @@ function drawChart() {
   var options = {
     title: "Stock Prices",
     width: 600,
-    height: 400,
+    height: 300,
     bar: {
-      groupWidth: "80%"
+      groupWidth: "90%"
     },
     legend: {
       position: "none"
     },
+    hAxis: {
+      minValue: 0,
+      title: "Price"
+    }
   };
-
-  var chart = new google.visualization.BarChart(document.getElementById('chart_div'));
-
+  var chart = new google.visualization.BarChart(document.getElementById("chart_div"));
   chart.draw(view, options);
 }
+
+function fetchStockData(symbol) {
+  var url = 'https://finnhub.io/api/v1/quote?symbol=' + symbol + '&token=brksgrnrh5r8d4o96dm0';
+  return fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      return data.c;
+    })
+    .catch(error => {
+      console.error('There has been a problem with your fetch operation:', error);
+    });
+}
+
+function refresh() {
+  var d = new Date();
+  var dayOfWeek = d.getDay();
+  var currentTimeInHours = d.getUTCHours();
+  if ((dayOfWeek != 0 && dayOfWeek != 6) && (currentTimeInHours >= 13 && currentTimeInHours < 22)) {
+    stockMap.forEach(function(value, key, map) {
+      let price = fetchStockData(key);
+
+      if (price) {
+        stockMap.set(key, parseFloat(price));
+         console.log(stockMap.get(key));
+        google.charts.load('current', {
+          'packages': ['corechart']
+        });
+        google.charts.setOnLoadCallback(drawChart);
+      }
+     
+    });
+    
+  }
+}
+
+var setinterval = setInterval(refresh, 5000);
