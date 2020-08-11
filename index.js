@@ -67,7 +67,6 @@ function fetchStockData(symbol) {
     return response.json();
   })
   .then((myJson) => {
-  console.log(myJson.c+" hello");
   return myJson.c;
     
   })
@@ -80,10 +79,8 @@ function drawChart() {
   var data = new google.visualization.DataTable();
   data.addColumn('string', 'stockID');
   data.addColumn('number', 'price');
-console.log(" hi from drawChart");
 
   stockMap.forEach(function(value, key, map) {
-  console.log(key+" "+value);
     data.addRow([key, value]);
   });
 
