@@ -1,6 +1,6 @@
-var button = document.getElementById("submit-button");
-var text = document.getElementById("text-field");
-var select = document.getElementById("select");
+let button = document.getElementById("submit-button");
+let text = document.getElementById("text-field");
+let select = document.getElementById("select");
 let stockMap = new Map()
 
 button.addEventListener('click', async function(event) {
@@ -36,12 +36,54 @@ button.addEventListener('click', async function(event) {
   setinterval = setInterval(refresh, 5000);
 });
 
+
+
+function refresh() {
+  var d = new Date();
+  var dayOfWeek = d.getDay();
+  var currentTimeInHours = d.getUTCHours();
+  if ((dayOfWeek != 0 && dayOfWeek != 6) && (currentTimeInHours >= 13 && currentTimeInHours < 22)) {
+    stockMap.forEach(async function(value, key, map) {
+      var price =await fetchStockData(key);
+      if (price) {
+        stockMap.set(key, price);
+        google.charts.load('current', {
+          'packages': ['corechart']
+        });
+        google.charts.setOnLoadCallback(drawChart);
+      }
+     
+    });
+    
+  }
+}
+
+let setinterval = setInterval(refresh(), 5000);
+
+function fetchStockData(symbol) {
+  var url = 'https://finnhub.io/api/v1/quote?symbol=' + symbol + '&token=brksgrnrh5r8d4o96dm0';
+  return fetch(url)
+  .then((response) => {
+    return response.json();
+  })
+  .then((myJson) => {
+  console.log(myJson.c+" hello");
+  return myJson.c;
+    
+  })
+    .catch(error => {
+      console.error('There has been a problem with your fetch operation:', error);
+    });
+}
+
 function drawChart() {
   var data = new google.visualization.DataTable();
   data.addColumn('string', 'stockID');
   data.addColumn('number', 'price');
+console.log(" hi from drawChart");
 
   stockMap.forEach(function(value, key, map) {
+  console.log(key+" "+value);
     data.addRow([key, value]);
   });
 
@@ -73,39 +115,3 @@ function drawChart() {
   var chart = new google.visualization.BarChart(document.getElementById("chart_div"));
   chart.draw(view, options);
 }
-
-function fetchStockData(symbol) {
-  var url = 'https://finnhub.io/api/v1/quote?symbol=' + symbol + '&token=brksgrnrh5r8d4o96dm0';
-  return fetch(url)
-    .then(response => response.json())
-    .then(data => {
-      return data.c;
-    })
-    .catch(error => {
-      console.error('There has been a problem with your fetch operation:', error);
-    });
-}
-
-function refresh() {
-  var d = new Date();
-  var dayOfWeek = d.getDay();
-  var currentTimeInHours = d.getUTCHours();
-  if ((dayOfWeek != 0 && dayOfWeek != 6) && (currentTimeInHours >= 13 && currentTimeInHours < 22)) {
-    stockMap.forEach(function(value, key, map) {
-      let price = fetchStockData(key);
-
-      if (price) {
-        stockMap.set(key, parseFloat(price));
-         console.log(stockMap.get(key));
-        google.charts.load('current', {
-          'packages': ['corechart']
-        });
-        google.charts.setOnLoadCallback(drawChart);
-      }
-     
-    });
-    
-  }
-}
-
-var setinterval = setInterval(refresh, 5000);
